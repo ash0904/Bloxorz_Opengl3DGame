@@ -19,7 +19,7 @@
 
 using namespace std;
 
-struct VAO {
+typedef struct VAO {
     GLuint VertexArrayID;
     GLuint VertexBuffer;
     GLuint ColorBuffer;
@@ -27,8 +27,7 @@ struct VAO {
     GLenum PrimitiveMode;
     GLenum FillMode;
     int NumVertices;
-};
-typedef struct VAO VAO;
+}VAO;
 
 struct GLMatrices {
     glm::mat4 projection;
@@ -37,11 +36,70 @@ struct GLMatrices {
     GLuint MatrixID;
 } Matrices;
 
-int do_rot, floor_rel;;
+typedef struct COLOR {
+    float r;
+    float g;
+    float b;
+} COLOR;
+int match_color(COLOR c1,COLOR c2)
+{
+  if(abs(c1.r-c2.r)<0.00001 &&
+      abs(c1.g-c2.g)<0.00001 &&
+        abs(c1.b-c2.b)<0.00001)
+        return 1;
+    else
+    return 0;
+
+}
+
+COLOR grey = {168.0/255.0,168.0/255.0,168.0/255.0};
+COLOR gold = {218.0/255.0,165.0/255.0,32.0/255.0};
+COLOR red = {255.0/255.0,51.0/255.0,51.0/255.0};
+COLOR lightgreen = {57/255.0,230/255.0,0/255.0};
+COLOR lightblue ={0/255.0, 170.0/255.0, 255/255.0};
+COLOR darkgreen = {51/255.0,102/255.0,0/255.0};
+COLOR black = {0,0,0};
+COLOR blue = {0,0,1};
+COLOR green = {1.0/255.0,255.0/255.0,1.0/255.0};
+COLOR darkbrown = {46/255.0,46/255.0,31/255.0};
+COLOR lightbrown = {95/255.0,63/255.0,32/255.0};
+COLOR lightpink = {255/255.0,122/255.0,173/255.0};
+COLOR darkpink = {255/255.0,51/255.0,119/255.0};
+COLOR white = {255/255.0,255/255.0,255/255.0};
+
+typedef struct Sprite {
+    string name;          // name of object
+    COLOR color;          // color of object
+    float x,y,z;          // translation co-odinates
+    float sx,sy,sz;       // scalling co-odinates
+    VAO* object;
+    VAO* boundary; // shape of object
+    int key_press;           // doubt???
+    int status;           // for objects to be hidden initially
+    float height,width,depth;
+    float dx,dy;          // amount to be moved
+    float rot_angle;
+    int inAir;            // boolean 0 or 1
+    int fixed;            // boolean 0 or 1
+    int isMoving;         // boolean 0 or 1
+} Sprite;
+
+
+int do_rot,floor_fl[10][10]= {{1,0,0,1,0,0,0,0,0,0},
+                              {1,0,0,1,0,0,0,0,0,0},
+                              {1,1,1,1,0,0,0,0,0,0},
+                              {1,1,1,1,1,1,1,1,0,0},
+                              {0,0,0,0,1,1,1,1,0,0},
+                              {0,0,0,0,1,1,0,1,0,0},
+                              {0,0,0,0,1,1,1,1,0,0},
+                              {0,0,0,0,1,1,1,1,1,1},
+                              {0,0,0,0,0,0,0,1,1,1},
+                              {0,0,0,0,0,0,0,1,1,1}};
+
 GLuint programID;
 double last_update_time, current_time;
-glm::vec3 rect_pos, floor_pos;
 float rectangle_rotation = 0;
+Sprite floor_mat[10][10],block;
 
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
@@ -146,39 +204,39 @@ void initGLEW(void){
 /* Generate VAO, VBOs and return VAO handle */
 struct VAO* create3DObject (GLenum primitive_mode, int numVertices, const GLfloat* vertex_buffer_data, const GLfloat* color_buffer_data, GLenum fill_mode=GL_FILL)
 {
-    struct VAO* vao = new struct VAO;
-    vao->PrimitiveMode = primitive_mode;
-    vao->NumVertices = numVertices;
-    vao->FillMode = fill_mode;
+  struct VAO* vao = new struct VAO;
+  vao->PrimitiveMode = primitive_mode;
+  vao->NumVertices = numVertices;
+  vao->FillMode = fill_mode;
 
-    // Create Vertex Array Object
-    // Should be done after CreateWindow and before any other GL calls
-    glGenVertexArrays(1, &(vao->VertexArrayID)); // VAO
-    glGenBuffers (1, &(vao->VertexBuffer)); // VBO - vertices
-    glGenBuffers (1, &(vao->ColorBuffer));  // VBO - colors
+  // Create Vertex Array Object
+  // Should be done after CreateWindow and before any other GL calls
+  glGenVertexArrays(1, &(vao->VertexArrayID)); // VAO
+  glGenBuffers (1, &(vao->VertexBuffer)); // VBO - vertices
+  glGenBuffers (1, &(vao->ColorBuffer));  // VBO - colors
 
-    glBindVertexArray (vao->VertexArrayID); // Bind the VAO
-    glBindBuffer (GL_ARRAY_BUFFER, vao->VertexBuffer); // Bind the VBO vertices
-    glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), vertex_buffer_data, GL_STATIC_DRAW); // Copy the vertices into VBO
-    glVertexAttribPointer(
-                          0,                  // attribute 0. Vertices
-                          3,                  // size (x,y,z)
-                          GL_FLOAT,           // type
-                          GL_FALSE,           // normalized?
-                          0,                  // stride
-                          (void*)0            // array buffer offset
-                          );
+  glBindVertexArray (vao->VertexArrayID); // Bind the VAO
+  glBindBuffer (GL_ARRAY_BUFFER, vao->VertexBuffer); // Bind the VBO vertices
+  glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), vertex_buffer_data, GL_STATIC_DRAW); // Copy the vertices into VBO
+  glVertexAttribPointer(
+               0,                  // attribute 0. Vertices
+               3,                  // size (x,y,z)
+               GL_FLOAT,           // type
+               GL_FALSE,           // normalized?
+               0,                  // stride
+               (void*)0            // array buffer offset
+               );
 
-    glBindBuffer (GL_ARRAY_BUFFER, vao->ColorBuffer); // Bind the VBO colors
-    glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), color_buffer_data, GL_STATIC_DRAW);  // Copy the vertex colors
-    glVertexAttribPointer(
-                          1,                  // attribute 1. Color
-                          3,                  // size (r,g,b)
-                          GL_FLOAT,           // type
-                          GL_FALSE,           // normalized?
-                          0,                  // stride
-                          (void*)0            // array buffer offset
-                          );
+  glBindBuffer (GL_ARRAY_BUFFER, vao->ColorBuffer); // Bind the VBO colors
+  glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), color_buffer_data, GL_STATIC_DRAW);  // Copy the vertex colors
+  glVertexAttribPointer(
+               1,                  // attribute 1. Color
+               3,                  // size (r,g,b)
+               GL_FLOAT,           // type
+               GL_FALSE,           // normalized?
+               0,                  // stride
+               (void*)0            // array buffer offset
+               );
 
     return vao;
 }
@@ -266,46 +324,32 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
 	quit(window);
 	break;
     case 'a':
-	rect_pos.x -= 0.1;
 	break;
     case 'd':
-	rect_pos.x += 0.1;
 	break;
     case 'w':
-	rect_pos.y += 0.1;
 	break;
     case 's':
-	rect_pos.y -= 0.1;
 	break;
     case 'r':
-	rect_pos.z -= 0.1;
 	break;
     case 'f':
-	rect_pos.z += 0.1;
 	break;
     case 'e':
-	rectangle_rotation += 1;
 	break;
     case 'j':
-	floor_pos.x -= 0.1;
 	break;
     case 'l':
-	floor_pos.x += 0.1;
 	break;
     case 'i':
-	floor_pos.y += 0.1;
 	break;
     case 'k':
-	floor_pos.y -= 0.1;
 	break;
     case 'y':
-	floor_pos.z -= 0.1;
 	break;
     case 'h':
-	floor_pos.z += 0.1;
 	break;
     case 'g':
-	floor_rel ^= 1;
 	break;
     case ' ':
 	do_rot ^= 1;
@@ -337,235 +381,341 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
     int fbwidth=width, fbheight=height;
     glfwGetFramebufferSize(window, &fbwidth, &fbheight);
 
-    GLfloat fov = M_PI/2;
+    GLfloat fov = 3*M_PI/4;
 
     // sets the viewport of openGL renderer
     glViewport (0, 0, (GLsizei) fbwidth, (GLsizei) fbheight);
 
     // Store the projection matrix in a variable for future use
     // Perspective projection for 3D views
-    Matrices.projection = glm::perspective(fov, (GLfloat) fbwidth / (GLfloat) fbheight, 0.1f, 500.0f);
-
-    // Ortho projection for 2D views
-    //Matrices.projection = glm::ortho(-4.0f, 4.0f, -4.0f, 4.0f, 0.1f, 500.0f);
+    Matrices.projection = glm::perspective(fov, (GLfloat) fbwidth / (GLfloat) fbheight, 0.1f, 1000.0f);
 }
 
-VAO *rectangle, *cam, *floor_vao;
+VAO *base, *baseBoundary, *floor_vao;
 
 // Creates the rectangle object used in this sample code
-void createRectangle ()
+void createCube (float wd,Sprite *obj)
 {
     // GL3 accepts only Triangles. Quads are not supported
      GLfloat vertex_buffer_data [] = {
-	-0.5, 0.5, 0.5,
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, 0.5,
-	-0.5, 0.5, 0.5,
-	0.5, -0.5, 0.5,
-	0.5, 0.5, 0.5,
-	0.5, 0.5, 0.5,
-	0.5, -0.5, 0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, 0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	0.5, 0.5, -0.5,
-	0.5, -0.5, -0.5,
-	-0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	-0.5, -0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	-0.5, 0.5, 0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, 0.5, 0.5,
-	0.5, 0.5, 0.5,
-	-0.5, 0.5, -0.5,
-	0.5, 0.5, 0.5,
-	0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, -0.5,
-	0.5, -0.5, 0.5,
-	-0.5, 0.5, 0.5,
-	0.5, 0.5, -0.5,
-	0.5, 0.75, -0.5,
+  -wd/2, wd/2, wd/2,
+	-wd/2, -wd/2, wd/2,
+	wd/2, -wd/2, wd/2,
+	-wd/2, wd/2, wd/2,
+	wd/2, -wd/2, wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, -wd/2, wd/2,
+	wd/2, -wd/2, -wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, -wd/2, -wd/2,
+	wd/2, wd/2, -wd/2,
+	wd/2, wd/2, -wd/2,
+	wd/2, -wd/2, -wd/2,
+	-wd/2, -wd/2, -wd/2,
+	wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, -wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	-wd/2, wd/2, wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, wd/2, wd/2,
+	wd/2, wd/2, wd/2,
+	-wd/2, wd/2, -wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	-wd/2, -wd/2, -wd/2,
+	wd/2, -wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	wd/2, -wd/2, -wd/2,
+	wd/2, -wd/2, wd/2,
     };
 
      GLfloat color_buffer_data [] = {
-	1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f,
-	1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	0.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,
-	0, 0, 0,
-	0, 0, 0,
-	1, 1, 1,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
     };
+    GLfloat boundary_buffer_data [] = {
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+   };
 
     // create3DObject creates and returns a handle to a VAO that can be used later
-    rectangle = create3DObject(GL_TRIANGLES, 13*3, vertex_buffer_data, color_buffer_data, GL_FILL);
+    base = create3DObject(GL_TRIANGLES, 36, vertex_buffer_data, color_buffer_data, GL_FILL);
+    baseBoundary = create3DObject(GL_TRIANGLES, 36, vertex_buffer_data, boundary_buffer_data, GL_LINE);
+    obj->object = base;
+    obj->boundary = baseBoundary;
 }
-void createCam ()
+void createBlock (float wd,Sprite *obj)
 {
     // GL3 accepts only Triangles. Quads are not supported
      GLfloat vertex_buffer_data [] = {
-	-0.1, 0, 0,
-	0.1, 0, 0,
-	0, 0.1, 0,
+  -wd/2, wd/2, wd/2,
+	-wd/2, -wd/2, wd/2,
+	wd/2, -wd/2, wd/2,
+	-wd/2, wd/2, wd/2,
+	wd/2, -wd/2, wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, -wd/2, wd/2,
+	wd/2, -wd/2, -wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, -wd/2, -wd/2,
+	wd/2, wd/2, -wd/2,
+	wd/2, wd/2, -wd/2,
+	wd/2, -wd/2, -wd/2,
+	-wd/2, -wd/2, -wd/2,
+	wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, -wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	-wd/2, wd/2, wd/2,
+	-wd/2, wd/2, -wd/2,
+	-wd/2, wd/2, wd/2,
+	wd/2, wd/2, wd/2,
+	-wd/2, wd/2, -wd/2,
+	wd/2, wd/2, wd/2,
+	wd/2, wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	-wd/2, -wd/2, -wd/2,
+	wd/2, -wd/2, -wd/2,
+	-wd/2, -wd/2, wd/2,
+	wd/2, -wd/2, -wd/2,
+	wd/2, -wd/2, wd/2,
     };
 
      GLfloat color_buffer_data [] = {
-	1, 1, 1,
-	1, 1, 1,
-	1, 1, 1,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f,
+       1.0f, 0.0f, 0.0f,
+       1.0f, 0.0f, 0.0f,
+       1.0f, 0.0f, 0.0f,
+       1.0f, 0.0f, 0.0f,
+       1.0f, 0.0f, 0.0f,
+       1.0f, 0.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
+       0.0f, 0.0f, 1.0f,
     };
+    GLfloat boundary_buffer_data [] = {
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f,
+   };
 
     // create3DObject creates and returns a handle to a VAO that can be used later
-    cam = create3DObject(GL_TRIANGLES, 1*3, vertex_buffer_data, color_buffer_data, GL_LINE);
-}
-void createFloor ()
-{
-    // GL3 accepts only Triangles. Quads are not supported
-     GLfloat vertex_buffer_data [] = {
-	-2, -1, 2,
-	2, -1, 2,
-	-2, -1, -2,
-	-2, -1, -2,
-	2, -1, 2,
-	2, -1, -2,
-    };
-
-     GLfloat color_buffer_data [] = {
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-    };
-
-    // create3DObject creates and returns a handle to a VAO that can be used later
-    floor_vao = create3DObject(GL_TRIANGLES, 2*3, vertex_buffer_data, color_buffer_data, GL_FILL);
+    base = create3DObject(GL_TRIANGLES, 36, vertex_buffer_data, color_buffer_data, GL_FILL);
+    baseBoundary = create3DObject(GL_TRIANGLES, 36, vertex_buffer_data, color_buffer_data, GL_LINE);
+    obj->object = base;
+    obj->boundary = baseBoundary;
 }
 
 float camera_rotation_angle = 90;
 
 /* Render the scene with openGL */
 /* Edit this function according to your assignment */
-void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
+
+void display(Sprite obj,glm::mat4 VP)
 {
-    int fbwidth, fbheight;
-    glfwGetFramebufferSize(window, &fbwidth, &fbheight);
-    glViewport((int)(x*fbwidth), (int)(y*fbheight), (int)(w*fbwidth), (int)(h*fbheight));
+  glm::mat4 MVP;	// MVP = Projection * View * Model
+  Matrices.model = glm::mat4(1.0f);
+  glm::mat4 translateRectangle = glm::translate (glm::vec3( obj.x, obj.y, obj.z));        // glTranslatef
+  glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
+  glm::mat4 scaleMat = glm::scale(glm::vec3 (obj.sx,obj.sy,obj.sz));
+  Matrices.model *= (translateRectangle * scaleMat);
+  MVP = VP * Matrices.model;
+  glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+  draw3DObject(obj.object);
+  draw3DObject(obj.boundary);
+}
 
+void display_block(Sprite obj,glm::mat4 VP)
+{
+  glm::mat4 MVP;	// MVP = Projection * View * Model
+  Matrices.model = glm::mat4(1.0f);
+  glm::mat4 translateRectangle = glm::translate (glm::vec3( obj.x, obj.y, obj.z));        // glTranslatef
+  glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
+  glm::mat4 scaleMat = glm::scale(glm::vec3 (obj.sx,obj.sy,obj.sz));
+  Matrices.model *= (translateRectangle * scaleMat);
+  MVP = VP * Matrices.model;
+  glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+  draw3DObject(obj.object);
+  draw3DObject(obj.boundary);
+}
 
-    // use the loaded shader program
+void draw (GLFWwindow* window)
+{
+      // use the loaded shader program
     // Don't change unless you know what you are doing
     glUseProgram(programID);
 
     // Eye - Location of camera. Don't change unless you are sure!!
-    glm::vec3 eye ( 5*cos(camera_rotation_angle*M_PI/180.0f), 0, 5*sin(camera_rotation_angle*M_PI/180.0f) );
+    // glm::vec3 eye ( -5*cos(camera_rotation_angle*M_PI/180.0f), 0, -5*sin(camera_rotation_angle*M_PI/180.0f));
+    glm::vec3 eye ( -5, 8, 3);
     // Target - Where is the camera looking at.  Don't change unless you are sure!!
     glm::vec3 target (0, 0, 0);
     // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
     glm::vec3 up (0, 1, 0);
 
     // Compute Camera matrix (view)
-    if(doV)
-	Matrices.view = glm::lookAt(eye, target, up); // Fixed camera for 2D (ortho) in XY plane
-    else
-	Matrices.view = glm::mat4(1.0f);
+  	Matrices.view = glm::lookAt(eye, target, up); // Fixed camera for 2D (ortho) in XY plane
 
     // Compute ViewProject matrix as view/camera might not be changed for this frame (basic scenario)
     glm::mat4 VP;
-    if (doP)
-	VP = Matrices.projection * Matrices.view;
-    else
-	VP = Matrices.view;
-
+    VP = Matrices.projection * Matrices.view;
     // Send our transformation to the currently bound shader, in the "MVP" uniform
     // For each model you render, since the MVP will be different (at least the M part)
-    glm::mat4 MVP;	// MVP = Projection * View * Model
-
-    // Load identity to model matrix
-    Matrices.model = glm::mat4(1.0f);
-
-    glm::mat4 translateRectangle = glm::translate (rect_pos);        // glTranslatef
-    glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
-    Matrices.model *= (translateRectangle * rotateRectangle);
-    if(floor_rel)
-	Matrices.model = Matrices.model * glm::translate(floor_pos);
-    if(doM)
-	MVP = VP * Matrices.model;
-    else
-	MVP = VP;
-    glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-    // draw3DObject draws the VAO given to it using current MVP matrix
-    draw3DObject(rectangle);
-
-    // Load identity to model matrix
-    Matrices.model = glm::mat4(1.0f);
-
-    glm::mat4 translateCam = glm::translate(eye);
-    glm::mat4 rotateCam = glm::rotate((float)((90 - camera_rotation_angle)*M_PI/180.0f), glm::vec3(0,1,0));
-    Matrices.model *= (translateCam * rotateCam);
-    MVP = VP * Matrices.model;
-    glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-    // draw3DObject draws the VAO given to it using current MVP matrix
-    draw3DObject(cam);
-
-    Matrices.model = glm::translate(floor_pos);
-    MVP = VP * Matrices.model;
-    glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-    // draw3DObject draws the VAO given to it using current MVP matrix
-    draw3DObject(floor_vao);
-
+    for(int i=0;i<10;i++)
+    {
+      for (int j = 0; j < 10; j++)
+      {
+        // std::cout << floor_mat[i][j].x<<" "<< floor_mat[i][j].z<< '\n';
+         if(floor_fl[i][j])
+          display(floor_mat[i][j],VP);
+      }
+    }
+    display_block(block,VP);
 }
 
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
-GLFWwindow* initGLFW (int width, int height){
+GLFWwindow* initGLFW (int width, int height)
+{
     GLFWwindow* window; // window desciptor/handle
 
     glfwSetErrorCallback(error_callback);
@@ -578,11 +728,12 @@ GLFWwindow* initGLFW (int width, int height){
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(width, height, "Sample OpenGL 3.3 Application", NULL, NULL);
+    window = glfwCreateWindow(width, height, "Bloxorz ~harshit mahajan", NULL, NULL);
+/* Nothing to Edit here */
 
     if (!window) {
-	exit(EXIT_FAILURE);
         glfwTerminate();
+        exit(EXIT_FAILURE);
     }
 
     glfwMakeContextCurrent(window);
@@ -604,9 +755,32 @@ void initGL (GLFWwindow* window, int width, int height)
 {
     /* Objects should be created before any other gl function and shaders */
     // Create the models
-    createRectangle ();
-    createCam();
-    createFloor();
+    float side=1.5;
+    float dispx=-4.5,dispz=-4.5;
+    for(int i=0;i<10;i++)
+    {
+      dispx=-4.5;
+      for (int j = 0; j < 10; j++)
+      {
+        Sprite *obj= &floor_mat[i][j];
+        createCube (side,obj);
+        obj->x = dispx*side;dispx+=1;
+        obj->y=0;
+        obj->z = dispz*side;
+        obj->sx=1;
+        obj->sy=0.25;
+        obj->sz=1;
+      }
+      dispz+=1;
+    }
+    createBlock(side,&block);
+    block.sx = 1;
+    block.sy = 2;
+    block.sz = 1;
+    block.x = floor_mat[0][0].x;
+    block.y = (side*floor_mat[0][0].sy)/2+(side*block.sy)/2;
+    block.z = floor_mat[0][0].z;
+
 
     // Create and compile our GLSL program from the shaders
     programID = LoadShaders( "Sample_GL.vert", "Sample_GL.frag" );
@@ -627,12 +801,9 @@ void initGL (GLFWwindow* window, int width, int height)
 
 int main (int argc, char** argv)
 {
-    int width = 600;
-    int height = 600;
-    rect_pos = glm::vec3(0, 0, 0);
-    floor_pos = glm::vec3(0, 0, 0);
+    int width = 800;
+    int height = 450;
     do_rot = 0;
-    floor_rel = 1;
 
     GLFWwindow* window = initGLFW(width, height);
     initGLEW();
@@ -640,24 +811,18 @@ int main (int argc, char** argv)
 
     last_update_time = glfwGetTime();
     /* Draw in loop */
-    while (!glfwWindowShouldClose(window)) {
+  while (!glfwWindowShouldClose(window))
+  {
 
-	// clear the color and depth in the frame buffer
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	   // clear the color and depth in the frame buffer
+	 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // OpenGL Draw commands
+  // OpenGL Draw commands
 	current_time = glfwGetTime();
-	if(do_rot)
-	    camera_rotation_angle += 90*(current_time - last_update_time); // Simulating camera rotation
-	if(camera_rotation_angle > 720)
-	    camera_rotation_angle -= 720;
+  // cout<< camera_rotation_angle<<endl;
 	last_update_time = current_time;
-	draw(window, 0, 0, 0.5, 0.5, 1, 1, 1);
-	draw(window, 0.5, 0, 0.5, 0.5, 0, 1, 1);
-	draw(window, 0, 0.5, 0.5, 0.5, 1, 0, 1);
-	draw(window, 0.5, 0.5, 0.5, 0.5, 0, 0, 1);
-
-        // Swap Frame Buffer in double buffering
+	draw(window);
+  // Swap Frame Buffer in double buffering
         glfwSwapBuffers(window);
 
         // Poll for Keyboard and mouse events
