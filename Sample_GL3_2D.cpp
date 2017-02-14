@@ -77,15 +77,16 @@ typedef struct Sprite {
     int key_press;           // doubt???
     int status;           // for objects to be hidden initially
     float height,width,depth;
-    float dx,dy;          // amount to be moved
-    float rot_angle;
+    float dx,dy,dz;          // amount to be moved
+    float rot_angle,anglez;
     int inAir;            // boolean 0 or 1
     int fixed;            // boolean 0 or 1
     int isMoving;         // boolean 0 or 1
+    int horiz,horix;
 } Sprite;
 
 
-int do_rot,floor_fl[10][10]= {{1,0,0,1,0,0,0,0,0,0},
+int do_rot,floor_fl0[10][10]= {{1,0,0,1,0,0,0,0,0,0},
                               {1,0,0,1,0,0,0,0,0,0},
                               {1,1,1,1,0,0,0,0,0,0},
                               {1,1,1,1,1,1,1,1,0,0},
@@ -94,12 +95,22 @@ int do_rot,floor_fl[10][10]= {{1,0,0,1,0,0,0,0,0,0},
                               {0,0,0,0,1,1,1,1,0,0},
                               {0,0,0,0,1,1,1,1,1,1},
                               {0,0,0,0,0,0,0,1,1,1},
-                              {0,0,0,0,0,0,0,1,1,1}};
-
+                              {0,0,0,0,0,0,0,1,1,1}},
+          floor_fl1[10][10] = {{1,1,1,0,0,0,0,0,0,0},
+                              {1,1,1,1,1,1,0,0,0,0},
+                              {1,1,1,1,1,1,1,1,1,0},
+                              {0,1,1,1,1,1,1,1,1,1},
+                              {0,0,0,0,0,1,1,0,1,1},
+                              {0,0,0,0,0,0,1,1,1,0},
+                              {0,0,0,0,0,0,0,0,0,0},
+                              {0,0,0,0,0,0,0,0,0,0},
+                              {0,0,0,0,0,0,0,0,0,0},
+                              {0,0,0,0,0,0,0,0,0,0}};
+int rox=0,roy=0,roz=0,iangle=0,fangle=0,fl1=0,fl2=0;
 GLuint programID;
 double last_update_time, current_time;
 float rectangle_rotation = 0;
-Sprite floor_mat[10][10],block;
+Sprite floor_mat[10][10],block,xblock,zblock;
 
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
@@ -283,7 +294,7 @@ void draw3DObject (struct VAO* vao)
 
 float rectangle_rot_dir = 1;
 bool rectangle_rot_status = true;
-
+int tpress=0;
 /* Executed when a regular key is pressed/released/held-down */
 /* Prefered for Keyboard events */
 void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -297,9 +308,41 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
 	    break;
 	case GLFW_KEY_P:
 	    break;
-	case GLFW_KEY_X:
-	    // do something ..
+	case GLFW_KEY_T:
+      tpress^=1;
 	    break;
+  case GLFW_KEY_RIGHT:
+      // if(abs(int(block.anglez))%90==0)
+      if( roz==0 && rox==0)
+      {
+        roz=-1;
+        iangle=block.anglez;
+      }
+      break;
+  case GLFW_KEY_LEFT:
+      // if(abs(int(block.anglez))%90==0)
+      if( roz==0 && rox==0)
+      {
+        roz=1;
+        iangle=block.anglez;
+      }
+      break;
+  case GLFW_KEY_UP:
+      // if(abs(int(block.rot_angle))%90==0)
+      if( roz==0 && rox==0)
+      {
+        rox=-1;
+        iangle=block.rot_angle;
+      }
+      break;
+  case GLFW_KEY_DOWN:
+      // if(abs(int(block.rot_angle))%90==0)
+      if( roz==0 && rox==0)
+        {
+          rox=1;
+          iangle=block.rot_angle;
+        }
+      break;
 	default:
 	    break;
         }
@@ -321,41 +364,41 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     switch (key) {
     case 'Q':
     case 'q':
-	quit(window);
-	break;
+	     quit(window);
+	     break;
     case 'a':
-	break;
+	     break;
     case 'd':
-	break;
+	     break;
     case 'w':
-	break;
+	     break;
     case 's':
-	break;
+	     break;
     case 'r':
-	break;
+	     break;
     case 'f':
-	break;
+	     break;
     case 'e':
-	break;
+	     break;
     case 'j':
-	break;
+	     break;
     case 'l':
-	break;
+	     break;
     case 'i':
-	break;
+	     break;
     case 'k':
-	break;
+	     break;
     case 'y':
-	break;
+	     break;
     case 'h':
-	break;
+	     break;
     case 'g':
-	break;
+	     break;
     case ' ':
-	do_rot ^= 1;
-	break;
+	// do_rot ^= 1;
+	   break;
     default:
-	break;
+	     break;
     }
 }
 
@@ -381,7 +424,7 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
     int fbwidth=width, fbheight=height;
     glfwGetFramebufferSize(window, &fbwidth, &fbheight);
 
-    GLfloat fov = 3*M_PI/4;
+    GLfloat fov = M_PI/2;
 
     // sets the viewport of openGL renderer
     glViewport (0, 0, (GLsizei) fbwidth, (GLsizei) fbheight);
@@ -655,7 +698,6 @@ void display(Sprite obj,glm::mat4 VP)
   glm::mat4 MVP;	// MVP = Projection * View * Model
   Matrices.model = glm::mat4(1.0f);
   glm::mat4 translateRectangle = glm::translate (glm::vec3( obj.x, obj.y, obj.z));        // glTranslatef
-  glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
   glm::mat4 scaleMat = glm::scale(glm::vec3 (obj.sx,obj.sy,obj.sz));
   Matrices.model *= (translateRectangle * scaleMat);
   MVP = VP * Matrices.model;
@@ -669,13 +711,49 @@ void display_block(Sprite obj,glm::mat4 VP)
   glm::mat4 MVP;	// MVP = Projection * View * Model
   Matrices.model = glm::mat4(1.0f);
   glm::mat4 translateRectangle = glm::translate (glm::vec3( obj.x, obj.y, obj.z));        // glTranslatef
-  glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
+  glm::mat4 rotateRectangle = glm::rotate((float)(0.0f), glm::vec3(0,0,1));
+  if(abs(roz) || obj.horiz)
+  rotateRectangle = glm::rotate((float)(obj.anglez*M_PI/180.0f), glm::vec3(0,0,1));
+  if(abs(rox) || obj.horix)
+  rotateRectangle = glm::rotate((float)(obj.rot_angle*M_PI/180.0f), glm::vec3(1,0,0));
+
   glm::mat4 scaleMat = glm::scale(glm::vec3 (obj.sx,obj.sy,obj.sz));
-  Matrices.model *= (translateRectangle * scaleMat);
+  Matrices.model *= (translateRectangle *rotateRectangle* scaleMat);
   MVP = VP * Matrices.model;
   glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
   draw3DObject(obj.object);
   draw3DObject(obj.boundary);
+}
+
+glm::mat4 topview()
+{
+  glm::vec3 eye ( 0, 10, 0);
+  glm::vec3 target (0, 0, 0);
+  glm::vec3 up (0, 0, -1);
+  return glm::lookAt(eye, target, up);
+}
+
+glm::mat4 towerview()
+{
+  glm::vec3 eye ( -3, 8, 3);
+  glm::vec3 target (0, 0, 0);
+  glm::vec3 up (0, 1, 0);
+   return glm::lookAt(eye, target, up);
+}
+
+glm::mat4 initialview()
+{
+  glm::vec3 eye ( -2, 8,4);
+  glm::vec3 target (0, 0, -2);
+  glm::vec3 up (0, 1, 0);
+  return glm::lookAt(eye, target, up);
+}
+
+void check(GLFWwindow* window)
+{
+  float bx=block.x,by=block.y,bz=block.z,tilw=floor_mat[0][0].width;
+  if(bx>=5*tilw || bx<=-5*tilw || by>=5*tilw || by<=-5*tilw || bz>=5*tilw || bz<=-5*tilw )
+    quit(window);
 }
 
 void draw (GLFWwindow* window)
@@ -686,15 +764,17 @@ void draw (GLFWwindow* window)
 
     // Eye - Location of camera. Don't change unless you are sure!!
     // glm::vec3 eye ( -5*cos(camera_rotation_angle*M_PI/180.0f), 0, -5*sin(camera_rotation_angle*M_PI/180.0f));
-    glm::vec3 eye ( -5, 8, 3);
+    glm::vec3 eye ( -3, 8, 3);
     // Target - Where is the camera looking at.  Don't change unless you are sure!!
     glm::vec3 target (0, 0, 0);
     // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
     glm::vec3 up (0, 1, 0);
-
+    glm::lookAt(eye, target, up);
     // Compute Camera matrix (view)
-  	Matrices.view = glm::lookAt(eye, target, up); // Fixed camera for 2D (ortho) in XY plane
-
+    if(tpress)
+    	Matrices.view = topview();  // Fixed camera for 2D (ortho) in XY plane
+    else
+      Matrices.view = initialview();
     // Compute ViewProject matrix as view/camera might not be changed for this frame (basic scenario)
     glm::mat4 VP;
     VP = Matrices.projection * Matrices.view;
@@ -704,12 +784,103 @@ void draw (GLFWwindow* window)
     {
       for (int j = 0; j < 10; j++)
       {
-        // std::cout << floor_mat[i][j].x<<" "<< floor_mat[i][j].z<< '\n';
-         if(floor_fl[i][j])
+         if(floor_fl1[i][j])
           display(floor_mat[i][j],VP);
       }
     }
-    display_block(block,VP);
+    float tempx=block.x,tempy=block.y,tempz=block.z;
+
+    if((block.horiz && rox))
+    {
+      if(rox==1)
+      block.z+=floor_mat[0][0].width;
+      if(rox==-1)
+      block.z-=floor_mat[0][0].width;
+      display_block(block,VP);
+      rox=0;
+    }
+    else if((block.horix && roz))
+    {
+      if(roz==-1)
+      block.x+=floor_mat[0][0].width;
+      if(roz==1)
+      block.x-=floor_mat[0][0].width;
+      display_block(block,VP);
+      roz=0;
+    }
+    else
+    {
+      if(roz==-1)
+      {
+        block.anglez+=3*roz;
+        // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+        if(block.horiz)
+          block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+        else
+          block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+          // cout<<block.x/floor_mat[0][0].width<<endl;
+
+        block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+      }
+      if(roz==1)
+      {
+        block.anglez+=3*roz;
+        // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+        if(block.horiz)
+          block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+        else
+          block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+      }
+
+      if(rox==1)
+      {
+        block.rot_angle+=3*rox;
+        // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
+        if(block.horix)
+          block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+        else
+          block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+        // cout<<block.y<<endl;
+      }
+      if(rox==-1)
+      {
+        block.rot_angle+=3*rox;
+        if(block.horix)
+          block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+        else
+          block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+        // cout<<block.y<<endl;
+      }
+
+      display_block(block,VP);
+      block.x=tempx;
+      block.z=tempz;
+      if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
+      {
+        if(roz==-1)
+          block.x+=(1.5*floor_mat[0][0].width);
+        if(roz==1)
+          block.x-=(1.5*floor_mat[0][0].width);
+        block.horiz^=1;
+        roz=0;
+        block.dx+=1;
+      }
+
+      if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
+      {
+        if(rox==1)
+          block.z+=(1.5*floor_mat[0][0].width);
+        if(rox==-1)
+          block.z-=(1.5*floor_mat[0][0].width);
+        block.horix^=1;
+        rox=0;
+        block.dz+=1;
+      }
+    }
+    check(window);
 }
 
 /* Initialise glfw window, I/O callbacks and the renderer to use */
@@ -755,7 +926,7 @@ void initGL (GLFWwindow* window, int width, int height)
 {
     /* Objects should be created before any other gl function and shaders */
     // Create the models
-    float side=1.5;
+    float side=2;
     float dispx=-4.5,dispz=-4.5;
     for(int i=0;i<10;i++)
     {
@@ -770,6 +941,9 @@ void initGL (GLFWwindow* window, int width, int height)
         obj->sx=1;
         obj->sy=0.25;
         obj->sz=1;
+        obj->height = side*obj->sy;
+        obj->width = side*obj->sx;
+        obj->depth = side*obj->sz;
       }
       dispz+=1;
     }
@@ -780,7 +954,37 @@ void initGL (GLFWwindow* window, int width, int height)
     block.x = floor_mat[0][0].x;
     block.y = (side*floor_mat[0][0].sy)/2+(side*block.sy)/2;
     block.z = floor_mat[0][0].z;
-
+    block.rot_angle=0;
+    block.anglez=0;
+    block.width=side*block.sx;
+    block.height=side*block.sy;
+    block.depth=side*block.sz;
+    block.horiz=0;
+    block.horix=0;
+    block.dx=0;
+    block.dz=0;
+    // createBlock(side,&xblock);
+    // block.sx = 2;
+    // block.sy = 1;
+    // block.sz = 1;
+    // block.x = floor_mat[0][0].x;
+    // block.y = (side*floor_mat[0][0].sy)/2+(side*block.sy)/2;
+    // block.z = floor_mat[0][0].z;
+    // block.rot_angle=0;
+    // block.width=side*block.sx;
+    // block.height=side*block.sy;
+    // block.depth=side*block.sz;
+    // createBlock(side,&zblock);
+    // block.sx = 1;
+    // block.sy = 2;
+    // block.sz = 1;
+    // block.x = floor_mat[0][0].x;
+    // block.y = (side*floor_mat[0][0].sy)/2+(side*block.sy)/2;
+    // block.z = floor_mat[0][0].z;
+    // block.rot_angle=0;
+    // block.width=side*block.sx;
+    // block.height=side*block.sy;
+    // block.depth=side*block.sz;
 
     // Create and compile our GLSL program from the shaders
     programID = LoadShaders( "Sample_GL.vert", "Sample_GL.frag" );
