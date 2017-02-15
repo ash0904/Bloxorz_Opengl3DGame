@@ -91,7 +91,7 @@ int do_rot,floor_fl0[10][10]= {{1,0,0,1,0,0,0,0,0,0},
                               {1,1,1,1,0,0,0,0,0,0},
                               {1,1,1,1,1,1,1,1,0,0},
                               {0,0,0,0,1,1,1,1,0,0},
-                              {0,0,0,0,1,1,0,1,0,0},
+                              {0,0,0,0,1,1,2,1,0,0},
                               {0,0,0,0,1,1,1,1,0,0},
                               {0,0,0,0,1,1,1,1,1,1},
                               {0,0,0,0,0,0,0,1,1,1},
@@ -106,7 +106,7 @@ int do_rot,floor_fl0[10][10]= {{1,0,0,1,0,0,0,0,0,0},
                               {0,0,0,0,0,0,0,0,0,0},
                               {0,0,0,0,0,0,0,0,0,0},
                               {0,0,0,0,0,0,0,0,0,0}};
-int rox=0,roy=0,roz=0,iangle=0,fangle=0,fl1=0,fl2=0;
+int rox=0,roy=0,roz=0,iangle=0,fangle=0,fl1=0,fl2=0,level=1;
 GLuint programID;
 double last_update_time, current_time;
 float rectangle_rotation = 0;
@@ -349,11 +349,11 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
     }
     else if (action == GLFW_PRESS) {
         switch (key) {
-	case GLFW_KEY_ESCAPE:
-	    quit(window);
-	    break;
-	default:
-	    break;
+        	case GLFW_KEY_ESCAPE:
+        	    quit(window);
+        	    break;
+        	default:
+        	    break;
         }
     }
 }
@@ -740,10 +740,20 @@ glm::mat4 towerview()
 
 glm::mat4 initialview()
 {
-  glm::vec3 eye ( -2, 8,4);
-  glm::vec3 target (0, 0, -2);
-  glm::vec3 up (0, 1, 0);
-  return glm::lookAt(eye, target, up);
+  if(level==2)
+  {
+    glm::vec3 eye ( -2, 8,4);
+    glm::vec3 target (0, 0, -2);
+    glm::vec3 up (0, 1, 0);
+    return glm::lookAt(eye, target, up);
+  }
+  if(level==1)
+  {
+      glm::vec3 eye ( -2, 10, 10);
+      glm::vec3 target (0, 0, -2);
+      glm::vec3 up (0, 1, 0);
+      return glm::lookAt(eye, target, up);
+  }
 }
 
 void check(GLFWwindow* window)
@@ -757,16 +767,38 @@ void check(GLFWwindow* window)
   {
     for(az=0;az<10;az++)
     {
-        if(floor_fl1[ax][az]==0)
-          if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
-            quit(window);
-        if(floor_fl1[ax][az]==2 && block.horiz==0 && block.horix==0)
-          if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
+      int tem;
+      if(level==1)
+      {
+        tem=floor_fl0[ax][az];
+      }
+      else if(level==2)
+      {
+        tem=floor_fl1[ax][az];
+      }
+
+      if(tem==0)
+        if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
           {
-            cout<<"You Won\n";
+            cout<<"Oops!\n";
             quit(window);
           }
-
+      if(tem==2 && block.horiz==0 && block.horix==0)
+        if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
+        {
+          if(level != 2)
+          {
+            cout<<"Congrats promoted to next level\n";
+            block.x = floor_mat[0][0].x;
+            block.z = floor_mat[0][0].z;
+            level++;
+          }
+          else
+          {
+            cout<<"You won\n";
+            quit(window);
+          }
+        }
     }
   }
 }
@@ -788,109 +820,220 @@ void draw (GLFWwindow* window)
     VP = Matrices.projection * Matrices.view;
     // Send our transformation to the currently bound shader, in the "MVP" uniform
     // For each model you render, since the MVP will be different (at least the M part)
-    for(int i=0;i<10;i++)
+
+    if(level==1)
     {
-      for (int j = 0; j < 10; j++)
+      for(int i=0;i<10;i++)
       {
-         if(floor_fl1[i][j]==1)
-          display(floor_mat[i][j],VP);
+        for (int j = 0; j < 10; j++)
+        {
+           if(floor_fl0[i][j]==1)
+            display(floor_mat[i][j],VP);
+        }
+        // cout<< floor_fl1[i][j]<< " ";
+        // cout<<endl;
       }
-      // cout<< floor_fl1[i][j]<< " ";
-      // cout<<endl;
-    }
-    float tempx=block.x,tempy=block.y,tempz=block.z;
+      float tempx=block.x,tempy=block.y,tempz=block.z;
 
-    if((block.horiz && rox))
-    {
-      if(rox==1)
-      block.z+=floor_mat[0][0].width;
-      if(rox==-1)
-      block.z-=floor_mat[0][0].width;
-      display_block(block,VP);
-      rox=0;
-    }
-    else if((block.horix && roz))
-    {
-      if(roz==-1)
-      block.x+=floor_mat[0][0].width;
-      if(roz==1)
-      block.x-=floor_mat[0][0].width;
-      display_block(block,VP);
-      roz=0;
-    }
-    else
-    {
-      if(roz==-1)
-      {
-        block.anglez+=3*roz;
-        // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
-        if(block.horiz)
-          block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
-        else
-          block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
-          // cout<<block.x/floor_mat[0][0].width<<endl;
-
-        block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
-      }
-      if(roz==1)
-      {
-        block.anglez+=3*roz;
-        // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
-        if(block.horiz)
-          block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
-        else
-          block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
-        block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
-      }
-
-      if(rox==1)
-      {
-        block.rot_angle+=3*rox;
-        // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
-        if(block.horix)
-          block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
-        else
-          block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
-        block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
-        // cout<<block.y<<endl;
-      }
-      if(rox==-1)
-      {
-        block.rot_angle+=3*rox;
-        if(block.horix)
-          block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
-        else
-          block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
-        block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
-        // cout<<block.y<<endl;
-      }
-
-      display_block(block,VP);
-      block.x=tempx;
-      block.z=tempz;
-      if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
-      {
-        if(roz==-1)
-          block.x+=(1.5*floor_mat[0][0].width);
-        if(roz==1)
-          block.x-=(1.5*floor_mat[0][0].width);
-        block.horiz^=1;
-        roz=0;
-        block.dx+=1;
-      }
-
-      if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
+      if((block.horiz && rox))
       {
         if(rox==1)
-          block.z+=(1.5*floor_mat[0][0].width);
+        block.z+=floor_mat[0][0].width;
         if(rox==-1)
-          block.z-=(1.5*floor_mat[0][0].width);
-        block.horix^=1;
+        block.z-=floor_mat[0][0].width;
+        display_block(block,VP);
         rox=0;
-        block.dz+=1;
       }
+      else if((block.horix && roz))
+      {
+        if(roz==-1)
+        block.x+=floor_mat[0][0].width;
+        if(roz==1)
+        block.x-=floor_mat[0][0].width;
+        display_block(block,VP);
+        roz=0;
+      }
+      else
+      {
+        if(roz==-1)
+        {
+          block.anglez+=3*roz;
+          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+          if(block.horiz)
+            block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+          else
+            block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+            // cout<<block.x/floor_mat[0][0].width<<endl;
+
+          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+        }
+        if(roz==1)
+        {
+          block.anglez+=3*roz;
+          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+          if(block.horiz)
+            block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+          else
+            block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+        }
+
+        if(rox==1)
+        {
+          block.rot_angle+=3*rox;
+          // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
+          if(block.horix)
+            block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+          else
+            block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+          // cout<<block.y<<endl;
+        }
+        if(rox==-1)
+        {
+          block.rot_angle+=3*rox;
+          if(block.horix)
+            block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+          else
+            block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+          // cout<<block.y<<endl;
+        }
+
+        display_block(block,VP);
+        block.x=tempx;
+        block.z=tempz;
+        if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
+        {
+          if(roz==-1)
+            block.x+=(1.5*floor_mat[0][0].width);
+          if(roz==1)
+            block.x-=(1.5*floor_mat[0][0].width);
+          block.horiz^=1;
+          roz=0;
+          block.dx+=1;
+        }
+
+        if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
+        {
+          if(rox==1)
+            block.z+=(1.5*floor_mat[0][0].width);
+          if(rox==-1)
+            block.z-=(1.5*floor_mat[0][0].width);
+          block.horix^=1;
+          rox=0;
+          block.dz+=1;
+        }
+      }
+      check(window);
     }
-    check(window);
+    else if(level==2)
+    {
+      for(int i=0;i<10;i++)
+      {
+        for (int j = 0; j < 10; j++)
+        {
+           if(floor_fl1[i][j]==1)
+            display(floor_mat[i][j],VP);
+        }
+        // cout<< floor_fl1[i][j]<< " ";
+        // cout<<endl;
+      }
+      float tempx=block.x,tempy=block.y,tempz=block.z;
+
+      if((block.horiz && rox))
+      {
+        if(rox==1)
+        block.z+=floor_mat[0][0].width;
+        if(rox==-1)
+        block.z-=floor_mat[0][0].width;
+        display_block(block,VP);
+        rox=0;
+      }
+      else if((block.horix && roz))
+      {
+        if(roz==-1)
+        block.x+=floor_mat[0][0].width;
+        if(roz==1)
+        block.x-=floor_mat[0][0].width;
+        display_block(block,VP);
+        roz=0;
+      }
+      else
+      {
+        if(roz==-1)
+        {
+          block.anglez+=3*roz;
+          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+          if(block.horiz)
+            block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+          else
+            block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+            // cout<<block.x/floor_mat[0][0].width<<endl;
+
+          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+        }
+        if(roz==1)
+        {
+          block.anglez+=3*roz;
+          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+          if(block.horiz)
+            block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+          else
+            block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+        }
+
+        if(rox==1)
+        {
+          block.rot_angle+=3*rox;
+          // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
+          if(block.horix)
+            block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+          else
+            block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+          // cout<<block.y<<endl;
+        }
+        if(rox==-1)
+        {
+          block.rot_angle+=3*rox;
+          if(block.horix)
+            block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+          else
+            block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+          // cout<<block.y<<endl;
+        }
+
+        display_block(block,VP);
+        block.x=tempx;
+        block.z=tempz;
+        if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
+        {
+          if(roz==-1)
+            block.x+=(1.5*floor_mat[0][0].width);
+          if(roz==1)
+            block.x-=(1.5*floor_mat[0][0].width);
+          block.horiz^=1;
+          roz=0;
+          block.dx+=1;
+        }
+
+        if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
+        {
+          if(rox==1)
+            block.z+=(1.5*floor_mat[0][0].width);
+          if(rox==-1)
+            block.z-=(1.5*floor_mat[0][0].width);
+          block.horix^=1;
+          rox=0;
+          block.dz+=1;
+        }
+      }
+      check(window);
+    }
+
 }
 
 /* Initialise glfw window, I/O callbacks and the renderer to use */
