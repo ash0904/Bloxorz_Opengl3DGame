@@ -8,6 +8,10 @@
 #include <time.h>
 #include <stdlib.h>
 
+#include <thread>
+#include <ao/ao.h>
+#include <mpg123.h>
+
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
@@ -86,31 +90,33 @@ typedef struct Sprite {
 } Sprite;
 
 
-int do_rot,floor_fl0[10][10]= {{1,0,0,1,0,0,0,0,0,0},
-                              {1,0,0,1,0,0,0,0,0,0},
-                              {1,1,1,1,0,0,0,0,0,0},
-                              {1,1,1,1,1,1,1,1,0,0},
-                              {0,0,0,0,1,1,1,1,0,0},
-                              {0,0,0,0,1,1,2,1,0,0},
-                              {0,0,0,0,1,1,1,1,0,0},
-                              {0,0,0,0,1,1,1,1,1,1},
+int do_rot,floor_fl0[10][10]={{1,0,0,1,0,0,0,0,0,0},
+                              {1,13,13,1,0,0,0,0,0,0},
+                              {1,1,1,5,1,1,0,0,0,0},
+                              {1,1,1,5,1,1,1,1,0,0},
+                              {1,0,0,0,1,1,1,1,0,0},
+                              {1,0,0,0,0,1,2,1,0,0},
+                              {1,1,1,3,0,1,1,1,0,0},
+                              {0,0,0,0,0,1,1,1,1,1},
                               {0,0,0,0,0,0,0,1,1,1},
                               {0,0,0,0,0,0,0,1,1,1}},
           floor_fl1[10][10] = {{1,1,1,0,0,0,0,0,0,0},
-                              {1,1,1,1,1,1,0,0,0,0},
-                              {1,1,1,1,1,1,1,1,1,0},
-                              {0,1,1,1,1,1,1,1,1,1},
-                              {0,0,0,0,0,1,1,2,1,1},
-                              {0,0,0,0,0,0,1,1,1,0},
-                              {0,0,0,0,0,0,0,0,0,0},
-                              {0,0,0,0,0,0,0,0,0,0},
-                              {0,0,0,0,0,0,0,0,0,0},
-                              {0,0,0,0,0,0,0,0,0,0}};
+                              {1,1,1,1,13,14,0,0,0,0},
+                              {1,1,1,1,13,14,1,1,1,0},
+                              {0,1,1,1,13,14,1,1,1,1},
+                              {0,1,0,0,0,14,1,2,1,1},
+                              {0,1,0,0,0,0,1,1,1,0},
+                              {0,1,1,1,3,0,0,0,0,0},
+                              {0,0,0,0,1,0,0,0,0,0},
+                              {0,0,0,0,1,0,0,0,0,0},
+                              {0,0,0,0,4,0,0,0,0,0}};
 int rox=0,roy=0,roz=0,iangle=0,fangle=0,fl1=0,fl2=0,level=1;
 GLuint programID;
 double last_update_time, current_time;
 float rectangle_rotation = 0;
 Sprite floor_mat[10][10],block,xblock,zblock;
+
+void* play_audio(string audioFile);
 
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
@@ -294,7 +300,8 @@ void draw3DObject (struct VAO* vao)
 
 float rectangle_rot_dir = 1;
 bool rectangle_rot_status = true;
-int tpress=0;
+int tp=0,bp=0,vp=0,fp=0,hp=0,cp=0;
+float camera_rotation_angle = 90;
 /* Executed when a regular key is pressed/released/held-down */
 /* Prefered for Keyboard events */
 void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -302,17 +309,54 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
     // Function is called first on GLFW_PRESS.
 
     if (action == GLFW_RELEASE) {
+      if(key!=GLFW_KEY_H)
+        camera_rotation_angle=0;
         switch (key) {
-	case GLFW_KEY_C:
-	    rectangle_rot_status = !rectangle_rot_status;
-	    break;
-	case GLFW_KEY_P:
+	case GLFW_KEY_B:
+      if(bp<4)
+      {tp=0;bp++;vp=0;fp=0;hp=0;cp=0;}
+      else
+      {
+        tp=0;bp=0;vp=0;fp=0;hp=0;cp=0;
+      }
 	    break;
 	case GLFW_KEY_T:
-      tpress^=1;
+      if(tp==1)
+      {tp=0;bp=0;vp=0;fp=0;hp=0;cp=0;}
+      else
+      {
+        tp=1;bp=0;vp=0;fp=0;hp=0;cp=0;
+      }
 	    break;
+  case GLFW_KEY_V:
+      if(vp==1)
+      {tp=0;bp=0;vp=0;fp=0;hp=0;cp=0;}
+      else{
+        tp=0;bp=0;vp=1;fp=0;hp=0;cp=0;
+      }
+      break;
+  case GLFW_KEY_F:
+      if(fp==1)
+      {tp=0;bp=0;vp=0;fp=0;hp=0;cp=0;}
+      else{
+        tp=0;bp=0;vp=0;fp=1;hp=0;cp=0;
+      }
+      break;
+  case GLFW_KEY_H:
+      if(hp==1)
+      {tp=0;bp=0;vp=0;fp=0;hp=0;cp=0;}
+      else{
+        tp=0;bp=0;vp=0;fp=0;hp=1;cp=0;
+      }
+      break;
+  case GLFW_KEY_C:
+      if(cp==1)
+      {tp=0;bp=0;vp=0;fp=0;hp=0;cp=0;}
+      else{
+        tp=0;bp=0;vp=0;fp=0;hp=0;cp=1;
+      }
+      break;
   case GLFW_KEY_RIGHT:
-      // if(abs(int(block.anglez))%90==0)
       if( roz==0 && rox==0)
       {
         roz=-1;
@@ -320,7 +364,6 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
       }
       break;
   case GLFW_KEY_LEFT:
-      // if(abs(int(block.anglez))%90==0)
       if( roz==0 && rox==0)
       {
         roz=1;
@@ -328,7 +371,6 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
       }
       break;
   case GLFW_KEY_UP:
-      // if(abs(int(block.rot_angle))%90==0)
       if( roz==0 && rox==0)
       {
         rox=-1;
@@ -336,7 +378,6 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
       }
       break;
   case GLFW_KEY_DOWN:
-      // if(abs(int(block.rot_angle))%90==0)
       if( roz==0 && rox==0)
         {
           rox=1;
@@ -365,34 +406,6 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 'Q':
     case 'q':
 	     quit(window);
-	     break;
-    case 'a':
-	     break;
-    case 'd':
-	     break;
-    case 'w':
-	     break;
-    case 's':
-	     break;
-    case 'r':
-	     break;
-    case 'f':
-	     break;
-    case 'e':
-	     break;
-    case 'j':
-	     break;
-    case 'l':
-	     break;
-    case 'i':
-	     break;
-    case 'k':
-	     break;
-    case 'y':
-	     break;
-    case 'h':
-	     break;
-    case 'g':
 	     break;
     case ' ':
 	// do_rot ^= 1;
@@ -437,7 +450,7 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
 VAO *base, *baseBoundary, *floor_vao;
 
 // Creates the rectangle object used in this sample code
-void createCube (float wd,Sprite *obj)
+void createCube (float wd,Sprite *obj,COLOR c1)
 {
     // GL3 accepts only Triangles. Quads are not supported
      GLfloat vertex_buffer_data [] = {
@@ -504,18 +517,18 @@ void createCube (float wd,Sprite *obj)
        1.0f, 0.0f, 1.0f,
        1.0f, 0.0f, 1.0f,
        1.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
+       c1.r, c1.g, c1.b,
     };
     GLfloat boundary_buffer_data [] = {
       0.0f, 0.0f, 0.0f,
@@ -688,7 +701,6 @@ void createBlock (float wd,Sprite *obj)
     obj->boundary = baseBoundary;
 }
 
-float camera_rotation_angle = 90;
 
 void display(Sprite obj,glm::mat4 VP)
 {
@@ -722,40 +734,6 @@ void display_block(Sprite obj,glm::mat4 VP)
   draw3DObject(obj.boundary);
 }
 
-glm::mat4 topview()
-{
-  glm::vec3 eye ( 0, 15, 0);
-  glm::vec3 target (0, 0, 0);
-  glm::vec3 up (0, 0, -1);
-  return glm::lookAt(eye, target, up);
-}
-
-glm::mat4 towerview()
-{
-  glm::vec3 eye ( -3, 8, 3);
-  glm::vec3 target (0, 0, 0);
-  glm::vec3 up (0, 1, 0);
-   return glm::lookAt(eye, target, up);
-}
-
-glm::mat4 initialview()
-{
-  if(level==2)
-  {
-    glm::vec3 eye ( -2, 8,4);
-    glm::vec3 target (0, 0, -2);
-    glm::vec3 up (0, 1, 0);
-    return glm::lookAt(eye, target, up);
-  }
-  if(level==1)
-  {
-      glm::vec3 eye ( -2, 10, 10);
-      glm::vec3 target (0, 0, -2);
-      glm::vec3 up (0, 1, 0);
-      return glm::lookAt(eye, target, up);
-  }
-}
-
 void check(GLFWwindow* window)
 {
   float bx=block.x,by=block.y,bz=block.z,tilw=floor_mat[0][0].width;
@@ -777,7 +755,7 @@ void check(GLFWwindow* window)
         tem=floor_fl1[ax][az];
       }
 
-      if(tem==0)
+      if(tem==0 || tem==13)
         if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
           {
             cout<<"Oops!\n";
@@ -792,6 +770,11 @@ void check(GLFWwindow* window)
             block.x = floor_mat[0][0].x;
             block.z = floor_mat[0][0].z;
             level++;
+            for(int i=0;i<10;i++)
+              for(int j=0;j<10;j++)
+              {
+                createCube(2.0f,&floor_mat[i][j],blue);
+              }
           }
           else
           {
@@ -799,20 +782,145 @@ void check(GLFWwindow* window)
             quit(window);
           }
         }
+      if(tem==5 && block.horiz==0 && block.horix==0)
+        if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
+        {
+          cout<<"Oops!\n";
+          quit(window);
+        }
+      if((tem==3 || tem==4)  && block.horiz==0 && block.horix==0)
+        if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
+        {
+          for(int i=0;i<10;i++)
+            for(int j=0;j<10;j++)
+            {
+              int *upd;
+              if(level==1)
+              {
+                upd=&floor_fl0[i][j];
+              }
+              else if(level==2)
+              {
+                upd=&floor_fl1[i][j];
+              }
+              if(*upd==10+tem)
+              {
+                *upd=1;
+                createCube(2.0f,&floor_mat[i][j],lightpink);
+              }
+            }
+          }
     }
   }
 }
+
+glm::mat4 topview()
+{
+  glm::vec3 eye ( 0, 18, 0);
+  glm::vec3 target (0, 0, 0);
+  glm::vec3 up (0, 0, -1);
+  return glm::lookAt(eye, target, up);
+}
+
+glm::mat4 blockview()
+{
+  if(bp==1)
+  {
+    glm::vec3 eye ( block.x+block.width/2, block.y, block.z);
+    glm::vec3 target ( block.x+block.width/2+2, block.y, block.z);
+    glm::vec3 up (0, 1, 0);
+    return glm::lookAt(eye, target, up);
+  }
+   if(bp==2)
+   {
+     glm::vec3 eye ( block.x, block.y, block.z-block.depth/2);
+     glm::vec3 target  ( block.x, block.y, block.z-block.depth/2-2);
+     glm::vec3 up (0, 1, 0);
+     return glm::lookAt(eye, target, up);
+   }
+   if(bp==3)
+   {
+       glm::vec3 eye ( block.x-block.width/2, block.y, block.z);
+       glm::vec3 target  ( block.x-block.width/2-2, block.y, block.z);
+       glm::vec3 up (0, 1, 0);
+       return glm::lookAt(eye, target, up);
+   }
+   if(bp==4)
+   {
+     glm::vec3 eye ( block.x, block.y, block.z+block.depth/2);
+     glm::vec3 target  ( block.x, block.y, block.z+block.depth/2+2);
+     glm::vec3 up (0, 1, 0);
+     return glm::lookAt(eye, target, up);
+   }
+}
+
+glm::mat4 towerview()
+{
+    glm::vec3 eye ( -10, 12, 12);
+    glm::vec3 target (0, 0, -2);
+    glm::vec3 up (0, 1, 0);
+    return glm::lookAt(eye, target, up);
+}
+
+glm::mat4 followview()
+{
+  glm::vec3 eye ( block.x+block.width/2+2, block.y+ block.height/2+2, block.z+block.depth/2+2);
+  glm::vec3 target  ( block.x-block.width/2-1, block.y, block.z-block.depth/2-1);
+  glm::vec3 up (0, 1, 0);
+  return glm::lookAt(eye, target, up);
+}
+
+glm::mat4 heliview()
+{
+  glm::vec3 eye ( 14*sin(camera_rotation_angle*M_PI/180.0f), 14, -14*cos(camera_rotation_angle*M_PI/180.0f));
+  glm::vec3 target (0, 0, 0);
+  glm::vec3 up (0, 1, 0);
+  return glm::lookAt(eye, target, up);
+}
+
+glm::mat4 initialview()
+{
+  if(level==1)
+  {
+      glm::vec3 eye ( -2, 10, 12);
+      glm::vec3 target (0, 0, -2);
+      glm::vec3 up (0, 1, 0);
+      return glm::lookAt(eye, target, up);
+  }
+  if(level==2)
+  {
+    glm::vec3 eye ( -1, 10,12);
+    glm::vec3 target (0, 0, -2);
+    glm::vec3 up (0, 1, 0);
+    return glm::lookAt(eye, target, up);
+  }
+}
+
 
 void draw (GLFWwindow* window)
 {
     glUseProgram(programID);
 
+
     glm::vec3 eye ( -3, 8, 3);
     glm::vec3 target (0, 0, 0);
     glm::vec3 up (0, 1, 0);
     glm::lookAt(eye, target, up);
-    if(tpress)
+    if(tp)
     	Matrices.view = topview();  // Fixed camera for 2D (ortho) in XY plane
+    else if(bp)
+      	Matrices.view = blockview();  // Fixed camera for 2D (ortho) in XY plane
+    else if(vp)
+      	Matrices.view = towerview();  // Fixed camera for 2D (ortho) in XY plane
+    else if(fp)
+      	Matrices.view = followview();  // Fixed camera for 2D (ortho) in XY plane
+    else if(hp)
+      {
+        camera_rotation_angle+=1;
+        if(camera_rotation_angle>=360)
+          camera_rotation_angle=0;
+      	Matrices.view = heliview();
+      }
     else
       Matrices.view = initialview();
     // Compute ViewProject matrix as view/camera might not be changed for this frame (basic scenario)
@@ -821,219 +929,126 @@ void draw (GLFWwindow* window)
     // Send our transformation to the currently bound shader, in the "MVP" uniform
     // For each model you render, since the MVP will be different (at least the M part)
 
-    if(level==1)
+    for(int i=0;i<10;i++)
     {
-      for(int i=0;i<10;i++)
+      for (int j = 0; j < 10; j++)
       {
-        for (int j = 0; j < 10; j++)
+        int tem;
+        if(level==1)
         {
-           if(floor_fl0[i][j]==1)
-            display(floor_mat[i][j],VP);
+          tem=floor_fl0[i][j];
         }
-        // cout<< floor_fl1[i][j]<< " ";
-        // cout<<endl;
-      }
-      float tempx=block.x,tempy=block.y,tempz=block.z;
-
-      if((block.horiz && rox))
-      {
-        if(rox==1)
-        block.z+=floor_mat[0][0].width;
-        if(rox==-1)
-        block.z-=floor_mat[0][0].width;
-        display_block(block,VP);
-        rox=0;
-      }
-      else if((block.horix && roz))
-      {
-        if(roz==-1)
-        block.x+=floor_mat[0][0].width;
-        if(roz==1)
-        block.x-=floor_mat[0][0].width;
-        display_block(block,VP);
-        roz=0;
-      }
-      else
-      {
-        if(roz==-1)
+        else if(level==2)
         {
-          block.anglez+=3*roz;
-          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
-          if(block.horiz)
-            block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
-          else
-            block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
-            // cout<<block.x/floor_mat[0][0].width<<endl;
-
-          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
-        }
-        if(roz==1)
-        {
-          block.anglez+=3*roz;
-          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
-          if(block.horiz)
-            block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
-          else
-            block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
-          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+          tem=floor_fl1[i][j];
         }
 
-        if(rox==1)
+         if(tem==1)
+          display(floor_mat[i][j],VP);
+        if(tem==3 || tem==4)
         {
-          block.rot_angle+=3*rox;
-          // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
-          if(block.horix)
-            block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
-          else
-            block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
-          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
-          // cout<<block.y<<endl;
+          float side=2;
+          createCube (side,&floor_mat[i][j],green);
+          display(floor_mat[i][j],VP);
         }
-        if(rox==-1)
+        if(tem==5)
         {
-          block.rot_angle+=3*rox;
-          if(block.horix)
-            block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
-          else
-            block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
-          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
-          // cout<<block.y<<endl;
-        }
-
-        display_block(block,VP);
-        block.x=tempx;
-        block.z=tempz;
-        if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
-        {
-          if(roz==-1)
-            block.x+=(1.5*floor_mat[0][0].width);
-          if(roz==1)
-            block.x-=(1.5*floor_mat[0][0].width);
-          block.horiz^=1;
-          roz=0;
-          block.dx+=1;
-        }
-
-        if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
-        {
-          if(rox==1)
-            block.z+=(1.5*floor_mat[0][0].width);
-          if(rox==-1)
-            block.z-=(1.5*floor_mat[0][0].width);
-          block.horix^=1;
-          rox=0;
-          block.dz+=1;
+          float side=2;
+          createCube (side,&floor_mat[i][j],red);
+          display(floor_mat[i][j],VP);
         }
       }
-      check(window);
     }
-    else if(level==2)
+    float tempx=block.x,tempy=block.y,tempz=block.z;
+
+    if((block.horiz && rox))
     {
-      for(int i=0;i<10;i++)
-      {
-        for (int j = 0; j < 10; j++)
-        {
-           if(floor_fl1[i][j]==1)
-            display(floor_mat[i][j],VP);
-        }
-        // cout<< floor_fl1[i][j]<< " ";
-        // cout<<endl;
-      }
-      float tempx=block.x,tempy=block.y,tempz=block.z;
-
-      if((block.horiz && rox))
-      {
-        if(rox==1)
+      if(rox==1)
         block.z+=floor_mat[0][0].width;
-        if(rox==-1)
+      if(rox==-1)
         block.z-=floor_mat[0][0].width;
-        display_block(block,VP);
-        rox=0;
-      }
-      else if((block.horix && roz))
-      {
-        if(roz==-1)
-        block.x+=floor_mat[0][0].width;
-        if(roz==1)
-        block.x-=floor_mat[0][0].width;
-        display_block(block,VP);
-        roz=0;
-      }
-      else
-      {
-        if(roz==-1)
-        {
-          block.anglez+=3*roz;
-          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
-          if(block.horiz)
-            block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
-          else
-            block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
-            // cout<<block.x/floor_mat[0][0].width<<endl;
-
-          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
-        }
-        if(roz==1)
-        {
-          block.anglez+=3*roz;
-          // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
-          if(block.horiz)
-            block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
-          else
-            block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
-          block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
-        }
-
-        if(rox==1)
-        {
-          block.rot_angle+=3*rox;
-          // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
-          if(block.horix)
-            block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
-          else
-            block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
-          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
-          // cout<<block.y<<endl;
-        }
-        if(rox==-1)
-        {
-          block.rot_angle+=3*rox;
-          if(block.horix)
-            block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
-          else
-            block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
-          block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
-          // cout<<block.y<<endl;
-        }
-
-        display_block(block,VP);
-        block.x=tempx;
-        block.z=tempz;
-        if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
-        {
-          if(roz==-1)
-            block.x+=(1.5*floor_mat[0][0].width);
-          if(roz==1)
-            block.x-=(1.5*floor_mat[0][0].width);
-          block.horiz^=1;
-          roz=0;
-          block.dx+=1;
-        }
-
-        if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
-        {
-          if(rox==1)
-            block.z+=(1.5*floor_mat[0][0].width);
-          if(rox==-1)
-            block.z-=(1.5*floor_mat[0][0].width);
-          block.horix^=1;
-          rox=0;
-          block.dz+=1;
-        }
-      }
-      check(window);
+      display_block(block,VP);
+      rox=0;
     }
+    else if((block.horix && roz))
+    {
+      if(roz==-1)
+        block.x+=floor_mat[0][0].width;
+      if(roz==1)
+        block.x-=floor_mat[0][0].width;
+      display_block(block,VP);
+      roz=0;
+    }
+    else
+    {
+      if(roz==-1)
+      {
+        block.anglez+=3*roz;
+        if(block.horiz)
+          block.x+=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+        else
+          block.x+=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+      }
+      if(roz==1)
+      {
+        block.anglez+=3*roz;
+        // block.x-=(3*(block.height)/4*sin(block.anglez*M_PI/180));
+        if(block.horiz)
+          block.x-=(1.5*floor_mat[0][0].width*abs(cos(block.anglez*M_PI/180)));
+        else
+          block.x-=(1.5*floor_mat[0][0].width*abs(sin(block.anglez*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.anglez*M_PI/180))+abs((block.depth)/2*sin(block.anglez*M_PI/180))+floor_mat[0][0].height/2);
+      }
 
+      if(rox==1)
+      {
+        block.rot_angle+=3*rox;
+        // block.x-=(3*(block.height)/4*sin(block.rot_angle*M_PI/180));
+        if(block.horix)
+          block.z+=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+        else
+          block.z+=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+        // cout<<block.y<<endl;
+      }
+      if(rox==-1)
+      {
+        block.rot_angle+=3*rox;
+        if(block.horix)
+          block.z-=(1.5*floor_mat[0][0].width*abs(cos(block.rot_angle*M_PI/180)));
+        else
+          block.z-=(1.5*floor_mat[0][0].width*abs(sin(block.rot_angle*M_PI/180)));
+        block.y=((block.height)/2*abs(cos(block.rot_angle*M_PI/180))+abs((block.depth)/2*sin(block.rot_angle*M_PI/180))+floor_mat[0][0].height/2);
+        // cout<<block.y<<endl;
+      }
+
+      display_block(block,VP);
+      block.x=tempx;
+      block.z=tempz;
+      if(abs(block.anglez-iangle)>=90 && abs(roz)==1 )
+      {
+        if(roz==-1)
+          block.x+=(1.5*floor_mat[0][0].width);
+        if(roz==1)
+          block.x-=(1.5*floor_mat[0][0].width);
+        block.horiz^=1;
+        roz=0;
+        block.dx+=1;
+      }
+
+      if(abs(block.rot_angle-iangle)>=90 && abs(rox)==1 )
+      {
+        if(rox==1)
+          block.z+=(1.5*floor_mat[0][0].width);
+        if(rox==-1)
+          block.z-=(1.5*floor_mat[0][0].width);
+        block.horix^=1;
+        rox=0;
+        block.dz+=1;
+      }
+    }
+    check(window);
 }
 
 /* Initialise glfw window, I/O callbacks and the renderer to use */
@@ -1087,7 +1102,7 @@ void initGL (GLFWwindow* window, int width, int height)
       for (int j = 0; j < 10; j++)
       {
         Sprite *obj= &floor_mat[i][j];
-        createCube (side,obj);
+        createCube (side,obj,blue);
         obj->x = dispx*side;dispx+=1;
         obj->y=0;
         obj->z = dispz*side;
@@ -1116,28 +1131,6 @@ void initGL (GLFWwindow* window, int width, int height)
     block.horix=0;
     block.dx=0;
     block.dz=0;
-    // createBlock(side,&xblock);
-    // block.sx = 2;
-    // block.sy = 1;
-    // block.sz = 1;
-    // block.x = floor_mat[0][0].x;
-    // block.y = (side*floor_mat[0][0].sy)/2+(side*block.sy)/2;
-    // block.z = floor_mat[0][0].z;
-    // block.rot_angle=0;
-    // block.width=side*block.sx;
-    // block.height=side*block.sy;
-    // block.depth=side*block.sz;
-    // createBlock(side,&zblock);
-    // block.sx = 1;
-    // block.sy = 2;
-    // block.sz = 1;
-    // block.x = floor_mat[0][0].x;
-    // block.y = (side*floor_mat[0][0].sy)/2+(side*block.sy)/2;
-    // block.z = floor_mat[0][0].z;
-    // block.rot_angle=0;
-    // block.width=side*block.sx;
-    // block.height=side*block.sy;
-    // block.depth=side*block.sz;
 
     // Create and compile our GLSL program from the shaders
     programID = LoadShaders( "Sample_GL.vert", "Sample_GL.frag" );
@@ -1156,8 +1149,62 @@ void initGL (GLFWwindow* window, int width, int height)
 
 }
 
+void* play_audio(string audioFile){
+	mpg123_handle *mh;
+	unsigned char *buffer;
+	size_t buffer_size;
+	size_t done;
+	int err;
+
+	int driver;
+	ao_device *dev;
+
+	ao_sample_format format;
+	int channels, encoding;
+	long rate;
+
+	/* initializations */
+	ao_initialize();
+	driver = ao_default_driver_id();
+	mpg123_init();
+	mh = mpg123_new(NULL, &err);
+	buffer_size = mpg123_outblock(mh);
+	buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+
+	/* open the file and get the decoding format */
+	mpg123_open(mh, &audioFile[0]);
+	mpg123_getformat(mh, &rate, &channels, &encoding);
+
+	/* set the output format and open the output device */
+	format.bits = mpg123_encsize(encoding) * 8;
+	format.rate = rate;
+	format.channels = channels;
+	format.byte_format = AO_FMT_NATIVE;
+	format.matrix = 0;
+	dev = ao_open_live(driver, &format, NULL);
+
+	/* decode and play */
+	char *p =(char *)buffer;
+	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK)
+		ao_play(dev, p, done);
+
+	/* clean up */
+	free(buffer);
+	ao_close(dev);
+	mpg123_close(mh);
+	mpg123_delete(mh);
+}
+
+time_t old_time;
+
+
 int main (int argc, char** argv)
 {
+
+    srand(time(NULL));
+
+    old_time = time(NULL);
+    thread(play_audio,"./back1.mp3").detach();
     int width = 800;
     int height = 450;
     do_rot = 0;
