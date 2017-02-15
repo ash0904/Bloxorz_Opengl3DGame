@@ -20,7 +20,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
+#define BITS 8
 using namespace std;
 
 typedef struct VAO {
@@ -38,7 +38,7 @@ struct GLMatrices {
     glm::mat4 model;
     glm::mat4 view;
     GLuint MatrixID;
-} Matrices;
+} Matrices,Matrices2;
 
 typedef struct COLOR {
     float r;
@@ -90,6 +90,7 @@ typedef struct Sprite {
 } Sprite;
 
 
+map <int, Sprite> sboard;
 int do_rot,floor_fl0[10][10]={{1,0,0,1,0,0,0,0,0,0},
                               {1,13,13,1,0,0,0,0,0,0},
                               {1,1,1,5,1,1,0,0,0,0},
@@ -100,23 +101,142 @@ int do_rot,floor_fl0[10][10]={{1,0,0,1,0,0,0,0,0,0},
                               {0,0,0,0,0,1,1,1,1,1},
                               {0,0,0,0,0,0,0,1,1,1},
                               {0,0,0,0,0,0,0,1,1,1}},
-          floor_fl1[10][10] = {{1,1,1,0,0,0,0,0,0,0},
-                              {1,1,1,1,13,14,0,0,0,0},
-                              {1,1,1,1,13,14,1,1,1,0},
-                              {0,1,1,1,13,14,1,1,1,1},
-                              {0,1,0,0,0,14,1,2,1,1},
-                              {0,1,0,0,0,0,1,1,1,0},
-                              {0,1,1,1,3,0,0,0,0,0},
-                              {0,0,0,0,1,0,0,0,0,0},
-                              {0,0,0,0,1,0,0,0,0,0},
-                              {0,0,0,0,4,0,0,0,0,0}};
+            floor_fl1[10][10] = {{1,1,1,5,0,0,0,0,0,0},
+                                {1,5,1,1,13,14,0,0,0,0},
+                                {1,5,1,1,13,14,5,1,1,0},
+                                {0,1,1,1,13,14,5,1,1,1},
+                                {0,1,0,0,0,5,1,2,1,1},
+                                {0,1,0,0,0,0,1,1,1,0},
+                                {0,1,1,1,3,0,0,0,0,0},
+                                {0,0,0,0,1,0,0,0,0,0},
+                                {0,0,0,0,1,0,0,0,0,0},
+                                {0,0,0,0,4,0,0,0,0,0}};
 int rox=0,roy=0,roz=0,iangle=0,fangle=0,fl1=0,fl2=0,level=1;
 GLuint programID;
 double last_update_time, current_time;
-float rectangle_rotation = 0;
+float camera_fov=M_PI/2;
 Sprite floor_mat[10][10],block,xblock,zblock;
 
-void* play_audio(string audioFile);
+// void* play_audio(string audioFile);
+mpg123_handle *mh,*mh2;
+unsigned char *buffer;
+size_t buffer_size;
+size_t done;
+int err;
+
+int driver;
+ao_device *dev;
+
+ao_sample_format format;
+int channels, encoding;
+long rate;
+
+void audio_init() {
+    /* initializations */
+    ao_initialize();
+    driver = ao_default_driver_id();
+    mpg123_init();
+    mh = mpg123_new(NULL, &err);
+    mh2 = mpg123_new(NULL, &err);
+    buffer_size= 3000;
+    buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
+
+    /* open the file and get the decoding format */
+    mpg123_open(mh, "./back1.mp3");
+    mpg123_getformat(mh, &rate, &channels, &encoding);
+    mpg123_open(mh2, "./back.mp3");
+    mpg123_getformat(mh2, &rate, &channels, &encoding);
+
+
+    /* set the output format and open the output device */
+    format.bits = mpg123_encsize(encoding) * BITS;
+    format.rate = rate;
+    format.channels = channels;
+    format.byte_format = AO_FMT_NATIVE;
+    format.matrix = 0;
+    dev = ao_open_live(driver, &format, NULL);
+}
+
+void audio_play(int lev) {
+    /* decode and play */
+    if(lev==1)
+    {
+      if (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK)
+          ao_play(dev, (char*) buffer, done);
+      else mpg123_seek(mh, 0, SEEK_SET);
+    }
+    else if(lev==2)
+    {
+      if (mpg123_read(mh2, buffer, buffer_size, &done) == MPG123_OK)
+          ao_play(dev, (char*) buffer, done);
+      else mpg123_seek(mh2, 0, SEEK_SET);
+    }
+}
+
+void audio_close() {
+    /* clean up */
+    free(buffer);
+    ao_close(dev);
+    mpg123_close(mh);
+    mpg123_delete(mh);
+    mpg123_close(mh2);
+    mpg123_delete(mh2);
+    mpg123_exit();
+    ao_shutdown();
+}
+
+
+mpg123_handle *mh1;
+unsigned char *buffer1;
+size_t buffer_size1;
+size_t done1;
+int err1;
+
+int driver1;
+ao_device *dev1;
+
+ao_sample_format format1;
+int channels1, encoding1;
+long rate1;
+
+void audio1_init() {
+    /* initializations */
+    ao_initialize();
+    driver1 = ao_default_driver_id();
+    mpg123_init();
+    mh1 = mpg123_new(NULL, &err1);
+    buffer_size1= 3000;
+    buffer1 = (unsigned char*) malloc(buffer_size1 * sizeof(unsigned char));
+
+    /* open the file and get the decoding format */
+	    mpg123_open(mh1,"./sound.mp3");
+    mpg123_getformat(mh1, &rate1, &channels1, &encoding1);
+
+    /* set the output format and open the output device */
+    format1.bits = mpg123_encsize(encoding1) * BITS;
+    format1.rate = rate1;
+    format1.channels = channels1;
+    format1.byte_format = AO_FMT_NATIVE;
+    format1.matrix = 0;
+    dev1 = ao_open_live(driver1, &format1, NULL);
+}
+
+void audio1_play() {
+    /* decode and play */
+    if (mpg123_read(mh1, buffer1, buffer_size1, &done1) == MPG123_OK)
+        ao_play(dev1, (char*) buffer1, done1);
+    else mpg123_seek(mh1, 0, SEEK_SET);
+}
+
+void audio1_close() {
+    /* clean up */
+    free(buffer1);
+    ao_close(dev1);
+    mpg123_close(mh1);
+    mpg123_delete(mh1);
+    mpg123_exit();
+    ao_shutdown();
+}
 
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
@@ -300,7 +420,7 @@ void draw3DObject (struct VAO* vao)
 
 float rectangle_rot_dir = 1;
 bool rectangle_rot_status = true;
-int tp=0,bp=0,vp=0,fp=0,hp=0,cp=0;
+int tp=0,bp=0,vp=0,fp=0,hp=0,cp=0,steps=0;
 float camera_rotation_angle = 90;
 /* Executed when a regular key is pressed/released/held-down */
 /* Prefered for Keyboard events */
@@ -359,6 +479,8 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
   case GLFW_KEY_RIGHT:
       if( roz==0 && rox==0)
       {
+        audio1_init();
+        steps++;
         roz=-1;
         iangle=block.anglez;
       }
@@ -366,6 +488,8 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
   case GLFW_KEY_LEFT:
       if( roz==0 && rox==0)
       {
+        audio1_init();
+        steps++;
         roz=1;
         iangle=block.anglez;
       }
@@ -373,6 +497,8 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
   case GLFW_KEY_UP:
       if( roz==0 && rox==0)
       {
+        audio1_init();
+        steps++;
         rox=-1;
         iangle=block.rot_angle;
       }
@@ -380,6 +506,8 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
   case GLFW_KEY_DOWN:
       if( roz==0 && rox==0)
         {
+          audio1_init();
+          steps++;
           rox=1;
           iangle=block.rot_angle;
         }
@@ -430,6 +558,8 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
 }
 
 
+
+
 /* Executed when window is resized to 'width' and 'height' */
 /* Modify the bounds of the screen here in glm::ortho or Field of View in glm::Perspective */
 void reshapeWindow (GLFWwindow* window, int width, int height)
@@ -437,7 +567,7 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
     int fbwidth=width, fbheight=height;
     glfwGetFramebufferSize(window, &fbwidth, &fbheight);
 
-    GLfloat fov = M_PI/2;
+    GLfloat fov = camera_fov;
 
     // sets the viewport of openGL renderer
     glViewport (0, 0, (GLsizei) fbwidth, (GLsizei) fbheight);
@@ -445,6 +575,23 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
     // Store the projection matrix in a variable for future use
     // Perspective projection for 3D views
     Matrices.projection = glm::perspective(fov, (GLfloat) fbwidth / (GLfloat) fbheight, 0.1f, 1000.0f);
+    Matrices2.projection = glm::ortho((float)(-500.0f), (float)(500.0f), (float)(-350.0f), (float)(350.0f), 0.1f, 500.0f);
+}
+void mousescroll(GLFWwindow* window, double xoffset, double yoffset)
+{
+    if (yoffset==-1) {
+        camera_fov*=1.1;
+    }
+    else if(yoffset==1){
+        camera_fov/=1.1; //make it bigger than current size
+    }
+    if(camera_fov>=2){
+    	camera_fov=2;
+    }
+    if(camera_fov<=0.5){
+    	camera_fov=0.5;
+    }
+    reshapeWindow(window,800,450);
 }
 
 VAO *base, *baseBoundary, *floor_vao;
@@ -701,6 +848,42 @@ void createBlock (float wd,Sprite *obj)
     obj->boundary = baseBoundary;
 }
 
+void check_score(GLFWwindow* window)
+{
+  int i,o,t,nf=0;
+  for(i=1;i<=15;i++)
+    sboard[i].status=0;
+  o=steps%10;
+  t=steps/10;
+  if(o==0 || o==2 || o==3 || o==5 || o==6 || o==7 || o==8 || o==9)
+    sboard[1].status=1;
+  if(o==0 || o==1 || o==2 || o==3 || o==4 || o==7 || o==8 || o==9)
+    sboard[2].status=1;
+  if(o==0 || o==1 || o==3 || o==4 || o==5 || o==6 || o==7 || o==8 || o==9)
+    sboard[3].status=1;
+  if(o==0 ||o==2 || o==3 || o==5 || o==6 || o==8 || o==9)
+    sboard[4].status=1;
+  if(o==0 || o==2 || o==6 || o==8)
+    sboard[5].status=1;
+  if(o==0  || o==4 || o==5 || o==6 || o==8 || o==9)
+    sboard[6].status=1;
+  if( o==2 || o==3 || o==4 || o==5 || o==6 || o==8 || o==9 )
+    sboard[7].status=1;
+  if(t==0 || t==2 || t==3 || t==5 || t==6 || t==7 || t==8 || t==9)
+    sboard[8].status=1;
+  if(t==0 || t==1 || t==2 || t==3 || t==4 || t==7 || t==8 || t==9)
+    sboard[9].status=1;
+  if(t==0 || t==1 || t==3 || t==4 || t==5 || t==6 || t==7 || t==8 || t==9)
+    sboard[10].status=1;
+  if(t==0 ||t==2 || t==3 || t==5 || t==6 || t==8 || t==9)
+    sboard[11].status=1;
+  if(t==0 || t==2 || t==6 || t==8)
+    sboard[12].status=1;
+  if(t==0 || t==4 || t==5 || t==6 || t==8 || t==9)
+    sboard[13].status=1;
+  if( t==2 || t==3 || t==4 || t==5 || t==6 || t==8 || t==9 )
+    sboard[14].status=1;
+}
 
 void display(Sprite obj,glm::mat4 VP)
 {
@@ -766,6 +949,7 @@ void check(GLFWwindow* window)
         {
           if(level != 2)
           {
+            steps=0;
             cout<<"Congrats promoted to next level\n";
             block.x = floor_mat[0][0].x;
             block.z = floor_mat[0][0].z;
@@ -896,6 +1080,25 @@ glm::mat4 initialview()
   }
 }
 
+void displaySteps(Sprite obj)
+{
+  Matrices2.view = glm::lookAt(glm::vec3(0,0,3), glm::vec3(0,0,0), glm::vec3(0,1,0)); // Fixed camera for 2D (ortho) in XY plane
+  glm::mat4 VP = Matrices2.projection * Matrices2.view;
+  glm::mat4 MVP;
+  Matrices2.model = glm::mat4(1.0f);
+  glm::mat4 ObjectTransform;
+  glm::mat4 translateObject = glm::translate (glm::vec3(obj.x,obj.y, 0.0f)); // glTranslatef
+  glm::mat4  rotateTriangle=glm::mat4(1.0f);
+  rotateTriangle = glm::rotate((float)(obj.rot_angle*M_PI/180.0f), glm::vec3(0,0,1));  // rotate about vector (1,0,0)
+  ObjectTransform=translateObject*rotateTriangle;
+
+  Matrices2.model *= ObjectTransform;
+  MVP = VP * Matrices2.model; // MVP = p * V * M
+
+  glUniformMatrix4fv(Matrices2.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+  draw3DObject(obj.object);
+}
+
 
 void draw (GLFWwindow* window)
 {
@@ -928,6 +1131,12 @@ void draw (GLFWwindow* window)
     VP = Matrices.projection * Matrices.view;
     // Send our transformation to the currently bound shader, in the "MVP" uniform
     // For each model you render, since the MVP will be different (at least the M part)
+    check_score(window);
+    for(int i=1;i<=15;i++)
+    {
+     if(sboard[i].status)
+        displaySteps(sboard[i]);
+    }
 
     for(int i=0;i<10;i++)
     {
@@ -1084,16 +1293,149 @@ GLFWwindow* initGLFW (int width, int height)
     glfwSetKeyCallback(window, keyboard);      // general keyboard input
     glfwSetCharCallback(window, keyboardChar);  // simpler specific character handling
     glfwSetMouseButtonCallback(window, mouseButton);  // mouse button clicks
+    glfwSetScrollCallback(window, mousescroll); // mouse scroll
 
     return window;
 }
 
 /* Initialize the OpenGL rendering properties */
 /* Add all the models to be created here */
+
+VAO* createRectangle (COLOR color1, float height, float width)
+{
+  // GL3 accepts only Triangles. Quads are not supported
+  float w=width/2,h=height/2;
+  GLfloat vertex_buffer_data [] = {
+      -w,-h,0, // vertex 1
+      -w,h,0, // vertex 2
+      w,h,0, // vertex 3
+
+      w,h,0, // vertex 3
+      w,-h,0, // vertex 4
+      -w,-h,0  // vertex 1
+  };
+
+   GLfloat color_buffer_data [] = {
+    color1.r,color1.g,color1.b, // color 1
+    color1.r,color1.g,color1.b, // color 2
+    color1.r,color1.g,color1.b, // color 3
+
+    color1.r,color1.g,color1.b, // color 3
+    color1.r,color1.g,color1.b, // color 4
+    color1.r,color1.g,color1.b,  // color 1
+
+  };
+    return create3DObject(GL_TRIANGLES, 6, vertex_buffer_data, color_buffer_data, GL_FILL);
+}
+
+void create_board(int no)
+{
+  sboard[no].name="sboard";
+  sboard[no].color=white;
+  sboard[no].width=3;
+  sboard[no].height=50;
+  sboard[no].status=0;
+  sboard[no].rot_angle=0;
+  if(no==1)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=35;
+    sboard[no].x=478;
+    sboard[no].y=345;
+  }
+  if(no==2)
+  {
+    // sboard[no].rot_angle=0;
+    sboard[no].x=495;
+    sboard[no].y=323;
+  }
+  if(no==3)
+  {
+    sboard[no].x=495;
+    sboard[no].y=268;
+  }
+  if(no==4)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=35;
+    sboard[no].x=478;
+    sboard[no].y=240;
+  }
+  if(no==5)
+  {
+    sboard[no].x=460;
+    sboard[no].y=268;
+  }
+  if(no==6)
+  {
+    sboard[no].x=460;
+    sboard[no].y=323;
+  }
+  if(no==7)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=35;
+    sboard[no].x=478;
+    sboard[no].y=295;
+  }
+  if(no==8)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=35;
+    sboard[no].x=428;
+    sboard[no].y=345;
+  }
+  if(no==9)
+  {
+    // sboard[no].rot_angle=0;
+    sboard[no].x=445;
+    sboard[no].y=323;
+  }
+  if(no==10)
+  {
+    sboard[no].x=445;
+    sboard[no].y=268;
+  }
+  if(no==11)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=35;
+    sboard[no].x=428;
+    sboard[no].y=240;
+  }
+  if(no==12)
+  {
+    sboard[no].x=410;
+    sboard[no].y=268;
+  }
+  if(no==13)
+  {
+    sboard[no].x=410;
+    sboard[no].y=323;
+  }
+  if(no==14)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=35;
+    sboard[no].x=428;
+    sboard[no].y=295;
+  }
+  if(no==15)
+  {
+    sboard[no].rot_angle=90;
+    sboard[no].height=20;
+    sboard[no].x=388;
+    sboard[no].y=293;
+  }
+  sboard[no].object = createRectangle (white, sboard[no].height,sboard[no].width);
+}
+
 void initGL (GLFWwindow* window, int width, int height)
 {
     /* Objects should be created before any other gl function and shaders */
     // Create the models
+    for(int i=1;i<=15;i++)
+      create_board(i);
     float side=2;
     float dispx=-4.5,dispz=-4.5;
     for(int i=0;i<10;i++)
@@ -1136,6 +1478,7 @@ void initGL (GLFWwindow* window, int width, int height)
     programID = LoadShaders( "Sample_GL.vert", "Sample_GL.frag" );
     // Get a handle for our "MVP" uniform
     Matrices.MatrixID = glGetUniformLocation(programID, "MVP");
+    Matrices2.MatrixID = glGetUniformLocation(programID, "MVP");
 
 
     reshapeWindow (window, width, height);
@@ -1149,51 +1492,6 @@ void initGL (GLFWwindow* window, int width, int height)
 
 }
 
-void* play_audio(string audioFile){
-	mpg123_handle *mh;
-	unsigned char *buffer;
-	size_t buffer_size;
-	size_t done;
-	int err;
-
-	int driver;
-	ao_device *dev;
-
-	ao_sample_format format;
-	int channels, encoding;
-	long rate;
-
-	/* initializations */
-	ao_initialize();
-	driver = ao_default_driver_id();
-	mpg123_init();
-	mh = mpg123_new(NULL, &err);
-	buffer_size = mpg123_outblock(mh);
-	buffer = (unsigned char*) malloc(buffer_size * sizeof(unsigned char));
-
-	/* open the file and get the decoding format */
-	mpg123_open(mh, &audioFile[0]);
-	mpg123_getformat(mh, &rate, &channels, &encoding);
-
-	/* set the output format and open the output device */
-	format.bits = mpg123_encsize(encoding) * 8;
-	format.rate = rate;
-	format.channels = channels;
-	format.byte_format = AO_FMT_NATIVE;
-	format.matrix = 0;
-	dev = ao_open_live(driver, &format, NULL);
-
-	/* decode and play */
-	char *p =(char *)buffer;
-	while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK)
-		ao_play(dev, p, done);
-
-	/* clean up */
-	free(buffer);
-	ao_close(dev);
-	mpg123_close(mh);
-	mpg123_delete(mh);
-}
 
 time_t old_time;
 
@@ -1204,12 +1502,13 @@ int main (int argc, char** argv)
     srand(time(NULL));
 
     old_time = time(NULL);
-    thread(play_audio,"./back1.mp3").detach();
+    // thread(play_audio,"./back1.mp3").detach();
     int width = 800;
     int height = 450;
     do_rot = 0;
 
     GLFWwindow* window = initGLFW(width, height);
+    audio_init();
     initGLEW();
     initGL (window, width, height);
 
@@ -1226,6 +1525,13 @@ int main (int argc, char** argv)
   // cout<< camera_rotation_angle<<endl;
 	last_update_time = current_time;
 	draw(window);
+  if(level==1)
+    audio_play(1);
+  if(level==2)
+    audio_play(2);
+
+  if(abs(rox) || abs(roz))
+    audio1_play();
   // Swap Frame Buffer in double buffering
         glfwSwapBuffers(window);
 
