@@ -100,7 +100,7 @@ int do_rot,floor_fl0[10][10]= {{1,0,0,1,0,0,0,0,0,0},
                               {1,1,1,1,1,1,0,0,0,0},
                               {1,1,1,1,1,1,1,1,1,0},
                               {0,1,1,1,1,1,1,1,1,1},
-                              {0,0,0,0,0,1,1,0,1,1},
+                              {0,0,0,0,0,1,1,2,1,1},
                               {0,0,0,0,0,0,1,1,1,0},
                               {0,0,0,0,0,0,0,0,0,0},
                               {0,0,0,0,0,0,0,0,0,0},
@@ -617,30 +617,30 @@ void createBlock (float wd,Sprite *obj)
        1.0f, 0.0f, 1.0f,
        1.0f, 0.0f, 1.0f,
        1.0f, 0.0f, 1.0f,
-       0.0f, 1.0f, 1.0f,
-       0.0f, 1.0f, 1.0f,
-       0.0f, 1.0f, 1.0f,
-       0.0f, 1.0f, 1.0f,
-       0.0f, 1.0f, 1.0f,
-       0.0f, 1.0f, 1.0f,
-       1.0f, 0.0f, 0.0f,
-       1.0f, 0.0f, 0.0f,
-       1.0f, 0.0f, 0.0f,
-       1.0f, 0.0f, 0.0f,
-       1.0f, 0.0f, 0.0f,
-       1.0f, 0.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 1.0f, 0.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
+       1.0f, 0.0f, 1.0f,
        0.0f, 1.0f, 0.0f,
        0.0f, 1.0f, 0.0f,
        0.0f, 1.0f, 0.0f,
        0.0f, 1.0f, 0.0f,
        0.0f, 1.0f, 0.0f,
        0.0f, 1.0f, 0.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
-       0.0f, 0.0f, 1.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
+       0.0f, 1.0f, 0.0f,
     };
     GLfloat boundary_buffer_data [] = {
       0.0f, 0.0f, 0.0f,
@@ -690,9 +690,6 @@ void createBlock (float wd,Sprite *obj)
 
 float camera_rotation_angle = 90;
 
-/* Render the scene with openGL */
-/* Edit this function according to your assignment */
-
 void display(Sprite obj,glm::mat4 VP)
 {
   glm::mat4 MVP;	// MVP = Projection * View * Model
@@ -713,9 +710,9 @@ void display_block(Sprite obj,glm::mat4 VP)
   glm::mat4 translateRectangle = glm::translate (glm::vec3( obj.x, obj.y, obj.z));        // glTranslatef
   glm::mat4 rotateRectangle = glm::rotate((float)(0.0f), glm::vec3(0,0,1));
   if(abs(roz) || obj.horiz)
-  rotateRectangle = glm::rotate((float)(obj.anglez*M_PI/180.0f), glm::vec3(0,0,1));
+    rotateRectangle = glm::rotate((float)(obj.anglez*M_PI/180.0f), glm::vec3(0,0,1));
   if(abs(rox) || obj.horix)
-  rotateRectangle = glm::rotate((float)(obj.rot_angle*M_PI/180.0f), glm::vec3(1,0,0));
+    rotateRectangle = glm::rotate((float)(obj.rot_angle*M_PI/180.0f), glm::vec3(1,0,0));
 
   glm::mat4 scaleMat = glm::scale(glm::vec3 (obj.sx,obj.sy,obj.sz));
   Matrices.model *= (translateRectangle *rotateRectangle* scaleMat);
@@ -727,7 +724,7 @@ void display_block(Sprite obj,glm::mat4 VP)
 
 glm::mat4 topview()
 {
-  glm::vec3 eye ( 0, 10, 0);
+  glm::vec3 eye ( 0, 15, 0);
   glm::vec3 target (0, 0, 0);
   glm::vec3 up (0, 0, -1);
   return glm::lookAt(eye, target, up);
@@ -754,23 +751,34 @@ void check(GLFWwindow* window)
   float bx=block.x,by=block.y,bz=block.z,tilw=floor_mat[0][0].width;
   if(bx>=5*tilw || bx<=-5*tilw || by>=5*tilw || by<=-5*tilw || bz>=5*tilw || bz<=-5*tilw )
     quit(window);
+  int ax=bx/tilw,ay=by/tilw,az=bz/tilw;
+
+  for(ax=0;ax<10;ax++)
+  {
+    for(az=0;az<10;az++)
+    {
+        if(floor_fl1[ax][az]==0)
+          if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
+            quit(window);
+        if(floor_fl1[ax][az]==2 && block.horiz==0 && block.horix==0)
+          if(abs(floor_mat[ax][az].x-bx)<=tilw/2 && abs(floor_mat[ax][az].z-bz)<=tilw/2)
+          {
+            cout<<"You Won\n";
+            quit(window);
+          }
+
+    }
+  }
 }
 
 void draw (GLFWwindow* window)
 {
-      // use the loaded shader program
-    // Don't change unless you know what you are doing
     glUseProgram(programID);
 
-    // Eye - Location of camera. Don't change unless you are sure!!
-    // glm::vec3 eye ( -5*cos(camera_rotation_angle*M_PI/180.0f), 0, -5*sin(camera_rotation_angle*M_PI/180.0f));
     glm::vec3 eye ( -3, 8, 3);
-    // Target - Where is the camera looking at.  Don't change unless you are sure!!
     glm::vec3 target (0, 0, 0);
-    // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
     glm::vec3 up (0, 1, 0);
     glm::lookAt(eye, target, up);
-    // Compute Camera matrix (view)
     if(tpress)
     	Matrices.view = topview();  // Fixed camera for 2D (ortho) in XY plane
     else
@@ -784,9 +792,11 @@ void draw (GLFWwindow* window)
     {
       for (int j = 0; j < 10; j++)
       {
-         if(floor_fl1[i][j])
+         if(floor_fl1[i][j]==1)
           display(floor_mat[i][j],VP);
       }
+      // cout<< floor_fl1[i][j]<< " ";
+      // cout<<endl;
     }
     float tempx=block.x,tempy=block.y,tempz=block.z;
 
